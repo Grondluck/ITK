@@ -72,7 +72,7 @@ class WalletsViewSetTest(TestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-    # убирал проверку на авторизацию для теста, иначе выдаёт 403
+    # убрал проверку на авторизацию для теста, иначе выдаёт 403
     def test_wallets_request_POST(self):
         with patch(
             'wallet.views.WalletsViewSet.permission_classes', [AllowAny]
@@ -101,4 +101,60 @@ class WalletsViewSetTest(TestCase):
             )
             self.assertEqual(response.status_code, 405)
 
+    def test_operation_request_GET(self):
+        wallet = Wallet(balance=0)
+        wallet.save()
+        response = self.client.get(f'/api/v1/wallets/{wallet.id}/operation/', 
+                                   content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 405)
+    
+    def test_operation_request_POST(self):
+        wallet = Wallet(balance=0)
+        wallet.save()
+        with patch(
+            'wallet.views.WalletsViewSet.permission_classes', [AllowAny]
+        ):
+            response = self.client.post(
+                f'/api/v1/wallets/{wallet.id}/operation/',
+                data={'operation_type':'DEPOSIT',
+                      'amount':'100'
+                },
+                content_type='application/json', 
+            )
+            self.assertEqual(response.status_code, 200)
+    
+    def test_operation_WITHDRAW_subzero(self):
+        wallet = Wallet(balance=0)
+        wallet.save()
+        with patch(
+            'wallet.views.WalletsViewSet.permission_classes', [AllowAny]
+        ):
+            response = self.client.post(
+                f'/api/v1/wallets/{wallet.id}/operation/',
+                data={'operation_type':'WITHDRAW',
+                      'amount':'0.20'
+                },
+                content_type='application/json', 
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(response.json(), 
+                             {'amount': ['Недостаточно средств на счете']
+            })
 
+    def test_operation_WITHDRAW(self):
+        wallet = Wallet(balance=1000)
+        wallet.save()
+        with patch(
+            'wallet.views.WalletsViewSet.permission_classes', [AllowAny]
+        ):
+            response = self.client.post(
+                f'/api/v1/wallets/{wallet.id}/operation/',
+                data={'operation_type':'WITHDRAW',
+                      'amount':'200.20'
+                },
+                content_type='application/json', 
+            )
+            self.assertEqual(response.status_code, 200)
+            wallet.refresh_from_db()
+            self.assertEqual(wallet.balance, Decimal('799.80'))   

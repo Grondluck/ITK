@@ -25,14 +25,17 @@ class WalletsViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def operation(self, request, pk):
         wallet = get_object_or_404(Wallet, pk=pk)
-        serializer = WalletOperationSerializer(data=request.data)
+        serializer = WalletOperationSerializer(data=request.data, 
+                                               context={'wallet':wallet}
+        )
         if serializer.is_valid():
             operation_type = serializer.validated_data['operation_type']
             amount = serializer.validated_data['amount']
             if operation_type == 'DEPOSIT':
                 wallet.balance += amount
             elif operation_type == 'WITHDRAW':
-                wallet.balance -= amount
+                if wallet.balance >= amount:
+                    wallet.balance -= amount
             wallet.save()
             wallet_serializer = WalletSerializer(wallet)
             return Response(wallet_serializer.data, status=status.HTTP_200_OK)

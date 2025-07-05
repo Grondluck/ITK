@@ -18,3 +18,13 @@ class WalletOperationSerializer(serializers.Serializer):
     amount = serializers.DecimalField(max_digits=12, decimal_places=2, 
                                       required=True
     )
+
+    def validate(self, data):
+        wallet = self.context['wallet']
+        if (data['operation_type'] == 'WITHDRAW' 
+            and data['amount'] > wallet.balance
+            ):
+            raise serializers.ValidationError({
+                "amount": "Недостаточно средств на счете"
+            })
+        return data
