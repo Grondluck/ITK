@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from django.db import transaction
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -24,7 +25,7 @@ class WalletsViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def operation(self, request, pk):
-        wallet = get_object_or_404(Wallet, pk=pk)
+        wallet = get_object_or_404(Wallet.objects.select_for_update(), pk=pk)
         serializer = WalletOperationSerializer(data=request.data, 
                                                context={'wallet':wallet}
         )
@@ -40,4 +41,6 @@ class WalletsViewSet(viewsets.ModelViewSet):
             wallet_serializer = WalletSerializer(wallet)
             return Response(wallet_serializer.data, status=status.HTTP_200_OK)
         else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.errors, 
+                            status=status.HTTP_400_BAD_REQUEST
+            )
